@@ -1,3 +1,4 @@
+// Connected to Supabase
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Calendar, Home, FileText, MessageSquare, TrendingUp, Users, Bell, CheckSquare, AlertCircle, Search, Plus, Upload, Send, Bot, Clock, Award, DollarSign, ChevronRight, ChevronDown, Eye, Download, Settings, LogOut, Sparkles, Target, Shield, BookOpen } from 'lucide-react';

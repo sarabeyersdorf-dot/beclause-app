@@ -24,12 +24,20 @@ export default function TxnUploader({ transactionId, checklistItemId }: { transa
     const token = session?.access_token;
     if (!token) { setError('No session'); setBusy(false); return; }
 
-    // 1) get signed upload URL
-    const res = await fetch('/functions/v1/create-upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ transactionId, filename: file.name })
-    });
+    // 1) create-upload-url (POST)
+const res = await fetch(
+  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-upload-url`,
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,  // required for functions from browser
+    },
+    body: JSON.stringify({ transactionId, filename: file.name }),
+  }
+);
+
     if (!res.ok) { setError('Cannot get upload URL'); setBusy(false); return; }
     const { path, token: signedToken } = await res.json();
 

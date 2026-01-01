@@ -13,10 +13,17 @@ const brandColors = {
   white: '#FFFFFF'
 };
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client (with fallback for missing env vars)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+let supabase = null;
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  console.log('✅ Supabase connected!');
+} else {
+  console.warn('⚠️ Supabase env vars not found - running in demo mode');
+}
 const BeClausePlatform = () => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [showAICopilot, setShowAICopilot] = useState(true);

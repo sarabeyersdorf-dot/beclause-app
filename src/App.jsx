@@ -12,6 +12,10 @@ const brandColors = {
   white: '#FFFFFF'
 };
 
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 const BeClausePlatform = () => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [showAICopilot, setShowAICopilot] = useState(true);

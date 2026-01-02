@@ -1,8 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase, IS_SUPABASE_CONFIGURED } from './lib/supabase';
-import React, { useEffect, useState } from 'react';
-import { supabase } from './lib/supabase';
 import TxnUploader from './components/TxnUploader';
 import {
   Home, FileText, Calendar, TrendingUp, Users, Bell,
@@ -20,18 +18,36 @@ const brandColors = {
 };
 
 export default function BeClauseApp() {
+  // If env vars are missing, show a friendly message (no blank page)
+  if (!IS_SUPABASE_CONFIGURED) {
+    return (
+      <div style={{ padding: 24, fontFamily: 'system-ui', lineHeight: 1.5 }}>
+        <h1 style={{ margin: 0, color: brandColors.navy }}>BeClause</h1>
+        <p><b>Supabase is not configured.</b></p>
+        <p>Add these environment variables in Vercel (All Environments) and redeploy:</p>
+        <pre style={{ background:'#f6f6f6', padding:12, borderRadius:8 }}>
+VITE_SUPABASE_URL = https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY = &lt;your anon public key&gt;
+VITE_MAX_FILE_MB = 25
+        </pre>
+      </div>
+    );
+  }
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [activeTransaction, setActiveTransaction] = useState(null);
 
+  // auth
   const [user, setUser] = useState(null);
   const [loadingApp, setLoadingApp] = useState(true);
   const [showAuth, setShowAuth] = useState(true);
   const [authMode, setAuthMode] = useState('login');
 
+  // transactions
   const [txns, setTxns] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // --- bootstrap auth ---
+  // ---------- Auth bootstrap ----------
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -47,7 +63,7 @@ export default function BeClauseApp() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- load transactions for agent ---
+  // ---------- Load transactions for logged-in user ----------
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -62,7 +78,7 @@ export default function BeClauseApp() {
     })();
   }, [user]);
 
-  // --- Auth UI ---
+  // ---------- Auth UI ----------
   const Auth = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -77,7 +93,7 @@ export default function BeClauseApp() {
       });
       if (error) { setError(error.message); return; }
 
-      // optional profile upsert (policy must allow)
+      // Optional: create a matching profile row (RLS policy must allow it)
       await supabase.from('profiles').upsert({
         id: data.user.id,
         email,
@@ -93,7 +109,7 @@ export default function BeClauseApp() {
       e.preventDefault();
       setError('');
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
+      if (error) { setError(error.message); }
     };
 
     return (
@@ -157,7 +173,7 @@ export default function BeClauseApp() {
     );
   };
 
-  // --- New Transaction Modal ---
+  // ---------- New Transaction Modal ----------
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
 
   const NewTransactionModal = () => {
@@ -176,7 +192,7 @@ export default function BeClauseApp() {
         agent_id: user.id,
         property_address: form.property_address,
         client_name: form.client_name,
-        transaction_type: form.transaction_type,
+        transaction_type: form.transaction_type, // trigger keeps txn_type in sync if you added it
         status: 'active',
         date_close: form.date_close || null
       }]);
@@ -185,6 +201,7 @@ export default function BeClauseApp() {
       setShowNewTransactionModal(false);
       setForm({ property_address: '', client_name: '', transaction_type: 'buy', date_close: '' });
 
+      // refresh list
       const { data } = await supabase
         .from('transactions')
         .select('id, property_address, client_name, transaction_type, status, created_at, date_close')
@@ -245,7 +262,7 @@ export default function BeClauseApp() {
     );
   };
 
-  // --- Dashboard ---
+  // ---------- Dashboard ----------
   const Dashboard = () => {
     const demo = [{
       id: 'demo-1',
@@ -345,7 +362,7 @@ export default function BeClauseApp() {
     );
   };
 
-  // --- Transaction Detail (with uploader) ---
+  // ---------- Transaction Detail (with uploader) ----------
   const TransactionDetail = () => {
     if (!activeTransaction) {
       setCurrentView('dashboard');

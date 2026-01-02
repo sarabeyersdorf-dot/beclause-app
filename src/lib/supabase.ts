@@ -13,6 +13,5 @@ export const supabase = IS_SUPABASE_CONFIGURED
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-// breadcrumb in console
 console.log('[SUPABASE] URL:', SUPABASE_URL || 'MISSING');
-console.log('[SUPABASE] ANON:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.slice(0, 6) + '…' : 'MISSING');
+console.log('[SUPABASE] ANON:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.slice(0,6)+'…' : 'MISSING');

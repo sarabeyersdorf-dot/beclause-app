@@ -3,17 +3,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 
-// ⬇️ Default export from App.jsx (name can be anything)
-import BeClauseApp from './App.jsx';
-
-// ⬇️ Adjust this path/name to match your file exactly
-import TxnUploadPage from './pages/TxnUploadPage.tsx'; // or './pages/TxnUploadPage.jsx'
+import App from './App.jsx';                   // ← default import, no { }
+import TxnUploadPage from './pages/TxnUploadPage.tsx'; // adjust to .jsx if that's your file
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HashRouter>
       <Routes>
-        <Route path="/" element={<BeClauseApp />} />
+        <Route path="/" element={<App />} />
         <Route path="/transactions/:id" element={<TxnUploadPage />} />
       </Routes>
     </HashRouter>

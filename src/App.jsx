@@ -1,32 +1,41 @@
-// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase, IS_SUPABASE_CONFIGURED } from './lib/supabase';
 import TxnUploader from './components/TxnUploader';
-import {
-  Home, FileText, Calendar, TrendingUp, Users, Bell,
-  AlertCircle, Search, Plus, Clock, LogOut, Sparkles, Target, Shield
-} from 'lucide-react';
+import { Home, FileText, Calendar, TrendingUp, Users, Bell, AlertCircle, Search, Plus, Clock, LogOut, Sparkles, Target, Shield } from 'lucide-react';
 
-const brandColors = {
-  navy: '#2A2947',
-  teal: '#3BB4C1',
-  magenta: '#E91E63',
-  gold: '#FDB913',
-  purple: '#6B5B95',
-  lightBg: '#F5F7FA',
-  white: '#FFFFFF',
-};
+const brandColors = { navy:'#2A2947', teal:'#3BB4C1', magenta:'#E91E63', gold:'#FDB913', purple:'#6B5B95', lightBg:'#F5F7FA', white:'#FFFFFF' };
+
+/** Catches runtime errors and shows them instead of a blank page */
+class ErrorBoundary extends React.Component {
+  constructor(p){ super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err){ return { err }; }
+  componentDidCatch(err, info){ console.error('App crashed:', err, info); }
+  render(){
+    if (this.state.err) {
+      return (
+        <div style={{ padding:24, fontFamily:'system-ui' }}>
+          <h1 style={{color:'#b91c1c'}}>Something broke in the UI</h1>
+          <pre style={{whiteSpace:'pre-wrap', background:'#fee2e2', padding:12, borderRadius:8}}>
+{String(this.state.err?.message || this.state.err)}
+          </pre>
+          <p>Open DevTools → Console for details.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function BeClauseApp() {
-  // If env vars are missing, show a friendly message (no blank page)
+  // If Supabase envs are missing, show message (no white screen)
   if (!IS_SUPABASE_CONFIGURED) {
     return (
       <div style={{ padding: 24, fontFamily: 'system-ui', lineHeight: 1.5 }}>
         <h1 style={{ margin: 0, color: brandColors.navy }}>BeClause</h1>
         <p><b>Supabase is not configured.</b></p>
-        <p>Add these environment variables in Vercel (All Environments) and redeploy:</p>
+        <p>Add these in Vercel → Project → Settings → Environment Variables (All Environments), then redeploy:</p>
         <pre style={{ background:'#f6f6f6', padding:12, borderRadius:8 }}>
-VITE_SUPABASE_URL = https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_URL = https://ureqqhxodmgchupvzmoa.supabase.co
 VITE_SUPABASE_ANON_KEY = &lt;your anon public key&gt;
 VITE_MAX_FILE_MB = 25
         </pre>
@@ -34,20 +43,26 @@ VITE_MAX_FILE_MB = 25
     );
   }
 
+  return (
+    <ErrorBoundary>
+      <AppBody />
+    </ErrorBoundary>
+  );
+}
+
+function AppBody(){
   const [currentView, setCurrentView] = useState('dashboard');
   const [activeTransaction, setActiveTransaction] = useState(null);
 
-  // auth
   const [user, setUser] = useState(null);
   const [loadingApp, setLoadingApp] = useState(true);
   const [showAuth, setShowAuth] = useState(true);
   const [authMode, setAuthMode] = useState('login');
 
-  // transactions
   const [txns, setTxns] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // ---------- Auth bootstrap ----------
+  // bootstrap auth
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -55,7 +70,6 @@ VITE_MAX_FILE_MB = 25
       setShowAuth(!session?.user);
       setLoadingApp(false);
     })();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ?? null);
       setShowAuth(!session?.user);
@@ -63,7 +77,7 @@ VITE_MAX_FILE_MB = 25
     return () => subscription.unsubscribe();
   }, []);
 
-  // ---------- Load transactions for logged-in user ----------
+  // load txns
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -78,7 +92,6 @@ VITE_MAX_FILE_MB = 25
     })();
   }, [user]);
 
-  // ---------- Auth UI ----------
   const Auth = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -92,24 +105,13 @@ VITE_MAX_FILE_MB = 25
         email, password, options: { data: { full_name: fullName } }
       });
       if (error) { setError(error.message); return; }
-
-      // Optional: create a matching profile row (RLS policy must allow it)
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email,
-        full_name: fullName,
-        role: 'agent',
-      });
-
-      alert('Account created! Please log in.');
-      setAuthMode('login');
+      await supabase.from('profiles').upsert({ id: data.user.id, email, full_name: fullName, role: 'agent' });
+      alert('Account created! Please log in.'); setAuthMode('login');
     };
-
     const handleLogin = async (e) => {
-      e.preventDefault();
-      setError('');
+      e.preventDefault(); setError('');
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setError(error.message); }
+      if (error) setError(error.message);
     };
 
     return (
@@ -120,97 +122,57 @@ VITE_MAX_FILE_MB = 25
             <div style={{ height: 4, background: `linear-gradient(90deg, ${brandColors.teal}, ${brandColors.magenta}, ${brandColors.gold})`, borderRadius: 2, marginBottom: 20 }} />
             <p className="text-sm" style={{ color: brandColors.teal }}>BE READY. BE COMPLIANT.</p>
           </div>
-
           <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setAuthMode('login')}
-              className="flex-1 py-2 rounded-lg"
-              style={{
-                backgroundColor: authMode === 'login' ? brandColors.teal : brandColors.lightBg,
-                color: authMode === 'login' ? 'white' : brandColors.navy
-              }}
-            >Login</button>
-            <button
-              onClick={() => setAuthMode('signup')}
-              className="flex-1 py-2 rounded-lg"
-              style={{
-                backgroundColor: authMode === 'signup' ? brandColors.teal : brandColors.lightBg,
-                color: authMode === 'signup' ? 'white' : brandColors.navy
-              }}
-            >Sign Up</button>
+            <button onClick={() => setAuthMode('login')} className="flex-1 py-2 rounded-lg"
+              style={{ backgroundColor: authMode === 'login' ? brandColors.teal : brandColors.lightBg, color: authMode === 'login' ? 'white' : brandColors.navy }}>Login</button>
+            <button onClick={() => setAuthMode('signup')} className="flex-1 py-2 rounded-lg"
+              style={{ backgroundColor: authMode === 'signup' ? brandColors.teal : brandColors.lightBg, color: authMode === 'signup' ? 'white' : brandColors.navy }}>Sign Up</button>
           </div>
-
           <form onSubmit={authMode === 'login' ? handleLogin : handleSignUp}>
             {authMode === 'signup' && (
               <div className="mb-4">
                 <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Full Name</label>
-                <input className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                  value={fullName} onChange={e => setFullName(e.target.value)} required />
+                <input className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }} value={fullName} onChange={e => setFullName(e.target.value)} required />
               </div>
             )}
             <div className="mb-4">
               <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Email</label>
-              <input type="email" className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                value={email} onChange={e => setEmail(e.target.value)} required />
+              <input type="email" className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }} value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
             <div className="mb-6">
               <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Password</label>
-              <input type="password" className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+              <input type="password" className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
             </div>
             {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>}
-            <button type="submit" className="w-full py-3 rounded-lg text-white font-bold"
-              style={{ backgroundColor: brandColors.magenta }}>
+            <button type="submit" className="w-full py-3 rounded-lg text-white font-bold" style={{ backgroundColor: brandColors.magenta }}>
               {authMode === 'login' ? 'Login' : 'Create Account'}
             </button>
           </form>
-
-          <div className="mt-6 text-center text-xs text-gray-500">
-            <p>Demo Mode: Account created instantly (no email verification needed)</p>
-          </div>
         </div>
       </div>
     );
   };
 
-  // ---------- New Transaction Modal ----------
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
-
   const NewTransactionModal = () => {
-    const [form, setForm] = useState({
-      property_address: '',
-      client_name: '',
-      transaction_type: 'buy', // 'buy' | 'sell'
-      date_close: '',
-    });
+    const [form, setForm] = useState({ property_address:'', client_name:'', transaction_type:'buy', date_close:'' });
     const [saving, setSaving] = useState(false);
-
     const submit = async (e) => {
-      e.preventDefault();
-      setSaving(true);
+      e.preventDefault(); setSaving(true);
       const { error } = await supabase.from('transactions').insert([{
-        agent_id: user.id,
-        property_address: form.property_address,
-        client_name: form.client_name,
-        transaction_type: form.transaction_type, // trigger keeps txn_type in sync if you added it
-        status: 'active',
-        date_close: form.date_close || null
+        agent_id: user.id, property_address: form.property_address, client_name: form.client_name,
+        transaction_type: form.transaction_type, status: 'active', date_close: form.date_close || null
       }]);
       setSaving(false);
       if (error) return alert(error.message);
       setShowNewTransactionModal(false);
-      setForm({ property_address: '', client_name: '', transaction_type: 'buy', date_close: '' });
-
-      // refresh list
-      const { data } = await supabase
-        .from('transactions')
+      setForm({ property_address:'', client_name:'', transaction_type:'buy', date_close:'' });
+      const { data } = await supabase.from('transactions')
         .select('id, property_address, client_name, transaction_type, status, created_at, date_close')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('agent_id', user.id).order('created_at', { ascending:false });
       setTxns(data ?? []);
       alert('Transaction created!');
     };
-
     if (!showNewTransactionModal) return null;
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -222,18 +184,18 @@ VITE_MAX_FILE_MB = 25
             <div>
               <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Property Address *</label>
               <input className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                value={form.property_address} onChange={e => setForm(f => ({ ...f, property_address: e.target.value }))} required />
+                value={form.property_address} onChange={e => setForm(f => ({...f, property_address:e.target.value}))} required />
             </div>
             <div>
               <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Client Name *</label>
               <input className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                value={form.client_name} onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))} required />
+                value={form.client_name} onChange={e => setForm(f => ({...f, client_name:e.target.value}))} required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Type *</label>
                 <select className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                  value={form.transaction_type} onChange={e => setForm(f => ({ ...f, transaction_type: e.target.value }))}>
+                  value={form.transaction_type} onChange={e => setForm(f => ({...f, transaction_type:e.target.value}))}>
                   <option value="buy">Buy</option>
                   <option value="sell">Sell</option>
                 </select>
@@ -241,18 +203,16 @@ VITE_MAX_FILE_MB = 25
               <div>
                 <label className="block text-sm mb-2" style={{ color: brandColors.navy }}>Expected Close</label>
                 <input type="date" className="w-full px-4 py-2 border rounded-lg" style={{ borderColor: brandColors.teal }}
-                  value={form.date_close} onChange={e => setForm(f => ({ ...f, date_close: e.target.value }))} />
+                  value={form.date_close} onChange={e => setForm(f => ({...f, date_close:e.target.value}))} />
               </div>
             </div>
-
             <div className="flex gap-3 pt-2">
-              <button type="button" className="flex-1 px-6 py-3 rounded-lg border-2"
-                onClick={() => setShowNewTransactionModal(false)}
-                style={{ borderColor: brandColors.navy, color: brandColors.navy }}>
+              <button type="button" onClick={() => setShowNewTransactionModal(false)}
+                className="flex-1 px-6 py-3 rounded-lg border-2" style={{ borderColor: brandColors.navy, color: brandColors.navy }}>
                 Cancel
               </button>
-              <button type="submit" disabled={saving} className="flex-1 px-6 py-3 rounded-lg text-white font-bold"
-                style={{ backgroundColor: brandColors.magenta }}>
+              <button type="submit" disabled={saving}
+                className="flex-1 px-6 py-3 rounded-lg text-white font-bold" style={{ backgroundColor: brandColors.magenta }}>
                 {saving ? 'Creating…' : 'Create Transaction'}
               </button>
             </div>
@@ -262,19 +222,9 @@ VITE_MAX_FILE_MB = 25
     );
   };
 
-  // ---------- Dashboard ----------
   const Dashboard = () => {
-    const demo = [{
-      id: 'demo-1',
-      property_address: '1234 Oak Street, San Francisco, CA',
-      client_name: 'Sarah & John Martinez',
-      transaction_type: 'buy',
-      status: 'active',
-      date_close: null,
-      created_at: new Date().toISOString()
-    }];
+    const demo = [{ id:'demo-1', property_address:'1234 Oak Street, San Francisco, CA', client_name:'Sarah & John Martinez', transaction_type:'buy', status:'active', date_close:null, created_at:new Date().toISOString() }];
     const list = txns.length ? txns : demo;
-
     return (
       <div>
         <div className="mb-6 flex justify-between items-center">
@@ -282,21 +232,17 @@ VITE_MAX_FILE_MB = 25
             <h1 className="text-3xl font-bold mb-2" style={{ color: brandColors.navy }}>Transaction Dashboard</h1>
             <p className="text-gray-600">Welcome back, {user?.user_metadata?.full_name || user?.email}!</p>
           </div>
-          <button
-            onClick={() => setShowNewTransactionModal(true)}
-            className="px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg hover:shadow-xl"
-            style={{ backgroundColor: brandColors.magenta, color: 'white' }}>
-            <Plus size={20} />
-            <span className="font-bold">New Transaction</span>
+          <button onClick={() => setShowNewTransactionModal(true)} className="px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg hover:shadow-xl"
+            style={{ backgroundColor: brandColors.magenta, color:'white' }}>
+            <Plus size={20} /><span className="font-bold">New Transaction</span>
           </button>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Active Transactions', value: txns.length.toString(), icon: Target, color: brandColors.teal },
-            { label: 'Action Items Due', value: '12', icon: AlertCircle, color: brandColors.magenta },
-            { label: 'Avg Compliance Score', value: '94%', icon: Shield, color: brandColors.gold },
-            { label: 'Avg Days to Close', value: '28', icon: Clock, color: brandColors.purple }
+            { label:'Active Transactions', value: txns.length.toString(), icon: Target, color: brandColors.teal },
+            { label:'Action Items Due', value:'12', icon: AlertCircle, color: brandColors.magenta },
+            { label:'Avg Compliance Score', value:'94%', icon: Shield, color: brandColors.gold },
+            { label:'Avg Days to Close', value:'28', icon: Clock, color: brandColors.purple }
           ].map((s, i) => (
             <div key={i} className="bg-white p-6 rounded-lg shadow">
               <div className="flex items-center justify-between mb-2">
@@ -307,12 +253,10 @@ VITE_MAX_FILE_MB = 25
             </div>
           ))}
         </div>
-
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="p-6 border-b" style={{ backgroundColor: brandColors.navy }}>
             <h2 className="text-xl font-bold text-white">Transactions</h2>
           </div>
-
           {loadingTx ? (
             <div className="p-12 text-center text-gray-500">Loading…</div>
           ) : (
@@ -322,19 +266,14 @@ VITE_MAX_FILE_MB = 25
                   onClick={() => { setActiveTransaction(t); setCurrentView('transaction'); }}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="font-bold text-lg mb-1" style={{ color: brandColors.navy }}>
-                        {t.property_address}
-                      </h3>
+                      <h3 className="font-bold text-lg mb-1" style={{ color: brandColors.navy }}>{t.property_address}</h3>
                       <p className="text-sm text-gray-600">{t.client_name}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
                         {t.status?.[0]?.toUpperCase() + t.status?.slice(1) || 'Active'}
                       </span>
-                      <span className="px-3 py-1 rounded-full text-sm" style={{
-                        backgroundColor: t.transaction_type === 'buy' ? brandColors.teal : brandColors.purple,
-                        color: 'white'
-                      }}>
+                      <span className="px-3 py-1 rounded-full text-sm" style={{ backgroundColor: t.transaction_type === 'buy' ? brandColors.teal : brandColors.purple, color:'white' }}>
                         {t.transaction_type === 'buy' ? 'Buy' : 'Sell'}
                       </span>
                     </div>
@@ -342,15 +281,11 @@ VITE_MAX_FILE_MB = 25
                   <div className="grid grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Expected Close</p>
-                      <p className="text-sm font-medium" style={{ color: brandColors.navy }}>
-                        {t.date_close || 'Not set'}
-                      </p>
+                      <p className="text-sm font-medium" style={{ color: brandColors.navy }}>{t.date_close || 'Not set'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Created</p>
-                      <p className="text-sm font-medium" style={{ color: brandColors.navy }}>
-                        {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
-                      </p>
+                      <p className="text-sm font-medium" style={{ color: brandColors.navy }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -362,46 +297,23 @@ VITE_MAX_FILE_MB = 25
     );
   };
 
-  // ---------- Transaction Detail (with uploader) ----------
   const TransactionDetail = () => {
-    if (!activeTransaction) {
-      setCurrentView('dashboard');
-      return null;
-    }
-
+    if (!activeTransaction) { setCurrentView('dashboard'); return null; }
     return (
       <div>
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          className="mb-4 text-sm"
-          style={{ color: brandColors.teal }}
-        >
-          ← Back to Dashboard
-        </button>
-
+        <button onClick={() => setCurrentView('dashboard')} className="mb-4 text-sm" style={{ color: brandColors.teal }}>← Back to Dashboard</button>
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-1" style={{ color: brandColors.navy }}>
-            {activeTransaction.property_address}
-          </h1>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: brandColors.navy }}>{activeTransaction.property_address}</h1>
           <p className="text-gray-600">{activeTransaction.client_name}</p>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4" style={{ color: brandColors.navy }}>
-              Upload a document for this transaction
-            </h2>
+            <h2 className="text-xl font-bold mb-4" style={{ color: brandColors.navy }}>Upload a document for this transaction</h2>
             <TxnUploader transactionId={activeTransaction.id} />
           </div>
-
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold mb-2" style={{ color: brandColors.navy }}>
-              Notes
-            </h3>
-            <p className="text-gray-600 text-sm">
-              After upload, check Supabase → Storage → <code>txn-docs</code> and the
-              <code> documents</code> table for the row.
-            </p>
+            <h3 className="text-lg font-bold mb-2" style={{ color: brandColors.navy }}>Notes</h3>
+            <p className="text-gray-600 text-sm">Check Storage <code>txn-docs</code> and table <code>documents</code> after upload.</p>
           </div>
         </div>
       </div>
@@ -414,7 +326,6 @@ VITE_MAX_FILE_MB = 25
         <h1 className="text-2xl font-bold mb-1" style={{ color: brandColors.gold }}>BECLAUSE</h1>
         <p className="text-xs" style={{ color: brandColors.teal }}>BE READY. BE COMPLIANT.</p>
       </div>
-
       <nav className="space-y-2">
         {[
           { icon: Home, label: 'Dashboard', view: 'dashboard' },
@@ -423,25 +334,17 @@ VITE_MAX_FILE_MB = 25
           { icon: TrendingUp, label: 'Analytics', view: 'analytics' },
           { icon: Users, label: 'Contacts', view: 'contacts' }
         ].map(item => (
-          <button key={item.view}
-            onClick={() => setCurrentView(item.view)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === item.view ? 'text-white' : 'text-gray-300 hover:text-white'
-            }`}
-            style={currentView === item.view ? { backgroundColor: brandColors.teal } : {}}
-          >
-            <item.icon size={20} />
-            <span className="text-sm font-medium">{item.label}</span>
+          <button key={item.view} onClick={() => setCurrentView(item.view)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${currentView === item.view ? 'text-white' : 'text-gray-300 hover:text-white'}`}
+            style={currentView === item.view ? { backgroundColor: brandColors.teal } : {}}>
+            <item.icon size={20} /><span className="text-sm font-medium">{item.label}</span>
           </button>
         ))}
       </nav>
-
       <div className="mt-auto pt-8 border-t" style={{ borderColor: brandColors.purple, marginTop: 200 }}>
-        <button
-          onClick={async () => { await supabase.auth.signOut(); }}
+        <button onClick={async () => { await supabase.auth.signOut(); }}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:text-white text-sm">
-          <LogOut size={20} />
-          Logout
+          <LogOut size={20} /> Logout
         </button>
       </div>
     </div>
@@ -453,8 +356,7 @@ VITE_MAX_FILE_MB = 25
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input className="pl-10 pr-4 py-2 border rounded-lg w-96 focus:outline-none focus:ring-2"
-            style={{ borderColor: brandColors.teal }}
-            placeholder="Search transactions, documents, contacts..." />
+            style={{ borderColor: brandColors.teal }} placeholder="Search transactions, documents, contacts..." />
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -506,7 +408,6 @@ VITE_MAX_FILE_MB = 25
           )}
         </main>
       </div>
-
       <NewTransactionModal />
     </div>
   );

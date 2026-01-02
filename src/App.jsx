@@ -1,4 +1,5 @@
 // src/App.jsx
+import TxnUploader from './components/TxnUploader';
 import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 import {

@@ -1,13 +1,13 @@
-// src/App.jsx
+// src/main.jsx
 import React from 'react';
-import { IS_SUPABASE_CONFIGURED } from './lib/supabase';
+import ReactDOM from 'react-dom/client';
 
-export default function App() {
-  return (
-    <div style={{padding:24,fontFamily:'system-ui'}}>
-      <h1>BeClause · Smoke Test</h1>
-      <p>App bundle loaded ✅</p>
-      <p>Supabase configured: <b>{String(IS_SUPABASE_CONFIGURED)}</b></p>
-    </div>
-  );
-}
+// If App.jsx exports `export default function BeClauseApp() { ... }`
+// you can import it with *any* name because it's a default export:
+import BeClauseApp from './App.jsx';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BeClauseApp />
+  </React.StrictMode>
+);

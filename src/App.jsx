@@ -1,11 +1,10 @@
 // src/App.jsx
-import TxnUploader from './components/TxnUploader';
 import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
+import TxnUploader from './components/TxnUploader';
 import {
   Home, FileText, Calendar, TrendingUp, Users, Bell,
-  CheckSquare, AlertCircle, Search, Plus, Bot, Clock, Award,
-  LogOut, Sparkles, Target, Shield
+  AlertCircle, Search, Plus, Clock, LogOut, Sparkles, Target, Shield
 } from 'lucide-react';
 
 const brandColors = {
@@ -22,17 +21,15 @@ export default function BeClauseApp() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [activeTransaction, setActiveTransaction] = useState(null);
 
-  // auth
   const [user, setUser] = useState(null);
   const [loadingApp, setLoadingApp] = useState(true);
   const [showAuth, setShowAuth] = useState(true);
   const [authMode, setAuthMode] = useState('login');
 
-  // transactions
   const [txns, setTxns] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
-  // ---------- Auth bootstrap ----------
+  // --- bootstrap auth ---
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -48,7 +45,7 @@ export default function BeClauseApp() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ---------- Load transactions for logged-in user ----------
+  // --- load transactions for agent ---
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -63,7 +60,7 @@ export default function BeClauseApp() {
     })();
   }, [user]);
 
-  // ---------- Auth UI ----------
+  // --- Auth UI ---
   const Auth = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -78,7 +75,7 @@ export default function BeClauseApp() {
       });
       if (error) { setError(error.message); return; }
 
-      // Optional: create a matching profile row (RLS policy must allow it)
+      // optional profile upsert (policy must allow)
       await supabase.from('profiles').upsert({
         id: data.user.id,
         email,
@@ -94,7 +91,7 @@ export default function BeClauseApp() {
       e.preventDefault();
       setError('');
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setError(error.message); }
+      if (error) setError(error.message);
     };
 
     return (
@@ -158,7 +155,7 @@ export default function BeClauseApp() {
     );
   };
 
-  // ---------- New Transaction Modal ----------
+  // --- New Transaction Modal ---
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
 
   const NewTransactionModal = () => {
@@ -177,7 +174,7 @@ export default function BeClauseApp() {
         agent_id: user.id,
         property_address: form.property_address,
         client_name: form.client_name,
-        transaction_type: form.transaction_type, // trigger keeps txn_type in sync
+        transaction_type: form.transaction_type,
         status: 'active',
         date_close: form.date_close || null
       }]);
@@ -186,7 +183,6 @@ export default function BeClauseApp() {
       setShowNewTransactionModal(false);
       setForm({ property_address: '', client_name: '', transaction_type: 'buy', date_close: '' });
 
-      // refresh
       const { data } = await supabase
         .from('transactions')
         .select('id, property_address, client_name, transaction_type, status, created_at, date_close')
@@ -247,19 +243,17 @@ export default function BeClauseApp() {
     );
   };
 
-  // ---------- Dashboard ----------
+  // --- Dashboard ---
   const Dashboard = () => {
-    const demo = [
-      {
-        id: 'demo-1',
-        property_address: '1234 Oak Street, San Francisco, CA',
-        client_name: 'Sarah & John Martinez',
-        transaction_type: 'buy',
-        status: 'active',
-        date_close: null,
-        created_at: new Date().toISOString()
-      }
-    ];
+    const demo = [{
+      id: 'demo-1',
+      property_address: '1234 Oak Street, San Francisco, CA',
+      client_name: 'Sarah & John Martinez',
+      transaction_type: 'buy',
+      status: 'active',
+      date_close: null,
+      created_at: new Date().toISOString()
+    }];
     const list = txns.length ? txns : demo;
 
     return (
@@ -344,6 +338,52 @@ export default function BeClauseApp() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // --- Transaction Detail (with uploader) ---
+  const TransactionDetail = () => {
+    if (!activeTransaction) {
+      setCurrentView('dashboard');
+      return null;
+    }
+
+    return (
+      <div>
+        <button
+          onClick={() => setCurrentView('dashboard')}
+          className="mb-4 text-sm"
+          style={{ color: brandColors.teal }}
+        >
+          ← Back to Dashboard
+        </button>
+
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h1 className="text-2xl font-bold mb-1" style={{ color: brandColors.navy }}>
+            {activeTransaction.property_address}
+          </h1>
+          <p className="text-gray-600">{activeTransaction.client_name}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-bold mb-4" style={{ color: brandColors.navy }}>
+              Upload a document for this transaction
+            </h2>
+            <TxnUploader transactionId={activeTransaction.id} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h3 className="text-lg font-bold mb-2" style={{ color: brandColors.navy }}>
+              Notes
+            </h3>
+            <p className="text-gray-600 text-sm">
+              After upload, check Supabase → Storage → <code>txn-docs</code> and the
+              <code> documents</code> table for the row.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -435,7 +475,8 @@ export default function BeClauseApp() {
         <Header />
         <main className="flex-1 p-8 overflow-y-auto">
           {currentView === 'dashboard' && <Dashboard />}
-          {currentView !== 'dashboard' && (
+          {currentView === 'transaction' && <TransactionDetail />}
+          {currentView !== 'dashboard' && currentView !== 'transaction' && (
             <div className="bg-white rounded-lg shadow-lg p-12 text-center">
               <Sparkles size={48} className="mx-auto mb-4" style={{ color: brandColors.teal }} />
               <h2 className="text-2xl font-bold mb-2" style={{ color: brandColors.navy }}>
@@ -447,7 +488,6 @@ export default function BeClauseApp() {
         </main>
       </div>
 
-      {/* Modals */}
       <NewTransactionModal />
     </div>
   );

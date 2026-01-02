@@ -1,15 +1,9 @@
-// src/main.jsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-
-// ⬇️ Default import (no curly braces). Must match a *default* export in App.jsx.
-import App from './App.jsx';
-
-console.log('main.jsx: rendering <App />');
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-export default BeClauseApp;
+// src/App.jsx
+export default function App() {
+  return (
+    <div style={{ padding: 24, fontFamily: 'system-ui' }}>
+      <h1>BeClause · App OK ✅</h1>
+      <p>This is the minimal App.jsx smoke test.</p>
+    </div>
+  );
+}

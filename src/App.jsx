@@ -186,11 +186,11 @@ VITE_MAX_FILE_MB = 25
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
 
   const NewTransactionModal = () => {
-    // IMPORTANT: default to values your DB allows
+    // IMPORTANT: DB expects 'buy' or 'sell'
     const [form, setForm] = useState({
       property_address: '',
       client_name: '',
-      transaction_type: 'buy-side', // <-- matches DB
+      transaction_type: 'buy',   // <- Option A
       date_close: '',
     });
     const [saving, setSaving] = useState(false);
@@ -202,7 +202,7 @@ VITE_MAX_FILE_MB = 25
         agent_id: user.id,
         property_address: form.property_address,
         client_name: form.client_name,
-        transaction_type: form.transaction_type, // 'buy-side' | 'sell-side'
+        transaction_type: form.transaction_type, // 'buy' | 'sell'
         status: 'active',
         date_close: form.date_close || null
       }]);
@@ -214,7 +214,7 @@ VITE_MAX_FILE_MB = 25
 
       // Close + refresh list
       setShowNewTransactionModal(false);
-      setForm({ property_address: '', client_name: '', transaction_type: 'buy-side', date_close: '' });
+      setForm({ property_address: '', client_name: '', transaction_type: 'buy', date_close: '' });
 
       const { data } = await supabase
         .from('transactions')
@@ -268,8 +268,8 @@ VITE_MAX_FILE_MB = 25
                   onChange={e => setForm(f => ({ ...f, transaction_type: e.target.value }))}
                 >
                   {/* values match DB constraint */}
-                  <option value="buy-side">Buy-Side</option>
-                  <option value="sell-side">Sell-Side</option>
+                  <option value="buy">Buy</option>
+                  <option value="sell">Sell</option>
                 </select>
               </div>
 
@@ -315,7 +315,7 @@ VITE_MAX_FILE_MB = 25
       id:'demo-1',
       property_address:'1234 Oak Street, San Francisco, CA',
       client_name:'Sarah & John Martinez',
-      transaction_type:'buy-side',
+      transaction_type:'buy',
       status:'active',
       date_close:null,
       created_at:new Date().toISOString()
@@ -366,8 +366,7 @@ VITE_MAX_FILE_MB = 25
         ) : (
           <div className="divide-y">
             {list.map((t) => {
-              const isBuy =
-                t.transaction_type === 'buy' || t.transaction_type === 'buy-side';
+              const isBuy = t.transaction_type === 'buy';
               const typeLabel = isBuy ? 'Buy-Side' : 'Sell-Side';
 
               return (
@@ -445,7 +444,6 @@ VITE_MAX_FILE_MB = 25
             <h2 className="text-xl font-bold mb-4" style={{ color: brandColors.navy }}>
               Upload a document for this transaction
             </h2>
-            {/* Uploader uses auth token + anon key correctly (in TxnUploader.tsx) */}
             <TxnUploader transactionId={activeTransaction.id} />
           </div>
 

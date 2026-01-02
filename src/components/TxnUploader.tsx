@@ -1,15 +1,18 @@
+// src/components/TxnUploader.tsx
 'use client';
+
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase'; // <- shared client ONLY
 
+// Read env once for Edge Function URL/header and max size
+const V = (import.meta as any).env || {};
 const SUPA_URL =
-  (import.meta as any).env?.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  V.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPA_ANON =
-  (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const MAX_MB =
-  Number((import.meta as any).env?.VITE_MAX_FILE_MB || process.env.NEXT_PUBLIC_MAX_FILE_MB || 25);
-
-const supabase = createClient(SUPA_URL!, SUPA_ANON!);
+  V.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const MAX_MB = Number(
+  V.VITE_MAX_FILE_MB || process.env.NEXT_PUBLIC_MAX_FILE_MB || 25
+);
 
 export default function TxnUploader({
   transactionId,
@@ -28,34 +31,36 @@ export default function TxnUploader({
     if (file.size > MAX_MB * 1024 * 1024) {
       setError(`File too large (>${MAX_MB}MB)`); return;
     }
+
     setBusy(true); setError(undefined); setDone(false);
 
     try {
+      // session from the shared client
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const userId = session?.user?.id;
       if (!token || !userId) throw new Error('Not signed in');
 
-      // 1) Edge Function to get signed upload URL
+      // 1) Ask Edge Function for a signed upload URL
       const res = await fetch(`${SUPA_URL}/functions/v1/create-upload-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPA_ANON!,
+          'apikey': SUPA_ANON!, // functions require apikey from the browser
         },
         body: JSON.stringify({ transactionId, filename: file.name }),
       });
       if (!res.ok) throw new Error(await res.text());
       const { path, token: signedToken } = await res.json();
 
-      // 2) Upload file to Storage using signed URL
+      // 2) Upload the file with the signed token
       const { error: upErr } = await supabase
         .storage.from('txn-docs')
         .uploadToSignedUrl(path, signedToken, file);
       if (upErr) throw upErr;
 
-      // 3) Insert document row (RLS requires uploaded_by)
+      // 3) Record the document row
       const { error: docErr } = await supabase.from('documents').insert({
         transaction_id: transactionId,
         uploaded_by: userId,
